@@ -7,21 +7,28 @@ export default class HudScene extends Phaser.Scene {
     super({ key: 'HudScene' });
   }
 
+  init(playState) {
+    this.playState = playState;
+  }
+
   create() {
     this.font = new Font(this);
 
     this.barLength = 10;
     this.xPadding = 20;
 
-    this.bodiesLeft = this.font.render(8, 6, '0-0');
+    const outer = this.playState.level.name.split("-")[1];
+    const inner = this.playState.level.currentNumber;
+
+    this.bodiesLeft = this.font.render(8, 6, `${outer}-${inner}`);
 
     const gameScene = this.scene.get('GameScene');
 
     gameScene.events.on(
-      'bodies-left',
+      'change-level',
       payload => {
-        const {night, bodiesLeft} = payload;
-        this.bodiesLeft.setText(`${night}-${bodiesLeft}`);
+        const {outer, inner} = payload;
+        this.bodiesLeft.setText(`${outer}-${inner}`);
       },
       this
     );

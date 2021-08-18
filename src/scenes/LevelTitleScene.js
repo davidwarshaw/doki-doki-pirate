@@ -20,10 +20,8 @@ export default class LevelTitleScene extends Phaser.Scene {
     this.images = [];
 
     let offsetY = 20;
-    this.images.push(this.add.image(centerX, centerY + offsetY, 'shovel'));
-
     offsetY += -32;
-    let text = `night ${this.playState.level}`;
+    let text = this.playState.level.name;
     let offsetX = this.offsetForText(text);
     this.images.push(this.font.render(centerX + offsetX, centerY + offsetY, text));
 
@@ -57,5 +55,6 @@ export default class LevelTitleScene extends Phaser.Scene {
     this.input.gamepad.removeAllListeners();
     this.scene.start('GameScene', this.playState);
     this.scene.start('HudScene', this.playState);
+    // this.scene.start('WinScene', this.playState);
   }
 }

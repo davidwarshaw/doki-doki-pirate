@@ -15,5 +15,6 @@ export default {
   groundLevel: 4,
   animFrameRate: 10,
   levelWaitMillis: 2000,
-  uiHangMillis: 500
+  uiHangMillis: 500,
+  fadeMillis: 500,
 };

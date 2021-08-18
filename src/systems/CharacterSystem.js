@@ -5,15 +5,21 @@ const WALK = 'WALK';
 const RUN = 'RUN';
 const PRUN = 'PRUN';
 const DUCK = 'DUCK';
+const DIG = 'DIG';
 const JUMP = 'JUMP';
 const FALL = 'FALL';
+const THROW = 'THROW';
+const ENTER = 'ENTER';
 
 export default class CharacterSystem {
-  constructor(player, inputMultiplexer) {
+  constructor(scene, map, player, level) {
+    this.scene = scene;
+    this.map = map;
     this.player = player;
+    this.level = level;
 
     this.velocityToFrameRateFactor = 0.1;
-    this.jumpAccelerationCorrectionFactor = 50;
+    this.jumpAccelerationCorrectionFactor = 40;
     this.dragCorrectionFactor = 100;
     this.gravityFactor = 25;
     this.constantFactor = 12;
@@ -32,7 +38,11 @@ export default class CharacterSystem {
       airAcceleration: 1.5,
       groundDrag: 1,
       airDrag: 0.4,
-      jumpGravityFactor: 0.035,
+      jumpGravityFactor: 0.02,
+      runJumpGravityFactor: 0.06,
+      throwVelocity: 15,
+      throwVelocityUpConstant: 5,
+      throwVelocityVerticalConstant: 4,
     };
     this.constants = {};
     Object.entries(this.rawConstants).forEach(element =>
@@ -40,14 +50,21 @@ export default class CharacterSystem {
     console.log(this.constants);
 
     this.pMeter = 0;
-    this.pMeterAddition = 0.10;
-    this.pMeterDecay = 0.05;
+    this.pMeterAddition = 0.12;
+    this.pMeterDecay = 0.06;
     this.pMax = 100;
 
     this.stateTime = 0;
-    this.maxJumpMillis = 4500;
+    this.maxJumpMillis = 500;
+
+    this.depth = {
+      jump: 29,
+      fall: 19,
+    }
 
     this.player.setGravityY(this.constants.gravity * this.gravityFactor);
+
+    this.carrying = !!this.level.veggies.carried;
 
     this.currentState = null;
     this.previousState = null;
@@ -62,10 +79,12 @@ export default class CharacterSystem {
     // console.log(`currentState: ${this.currentState}`);
     switch(this.currentState) {
       case IDLE: {
+        const walkState = this.carrying ? "carry_walk" : WALK;
+        const idleState = this.carrying ? "carry_idle" : IDLE;
         if (Math.abs(this.player.body.velocity.x) > this.constants.idleThresholdSpeed) {
-          this.player.playAnimationForState(WALK, this.timeScaleForVelocity());
+          this.player.playAnimationForState(walkState, this.timeScaleForVelocity());
         } else {
-          this.player.playAnimationForState(IDLE);
+          this.player.playAnimationForState(idleState);
         }
 
         if (this.inputMultiplexer.dPadVector().x != 0) {
@@ -79,17 +98,28 @@ export default class CharacterSystem {
         if (this.checkJump()) {
           break;
         };
+        if (this.checkDig()) {
+          break;
+        };
+        if (this.checkThrow()) {
+          break;
+        };
+        if (this.checkEnter()) {
+          break;
+        }
         break;
       }
       case WALK: {
+        const walkState = this.carrying ? "carry_walk" : WALK;
+        const turnState = this.carrying ? "carry_turn" : "turn";
         if (this.sameDirection(this.player.body.velocity.x, this.inputMultiplexer.dPadVector().x)
           || this.player.body.velocity.x === 0) {
-          this.player.playAnimationForState(WALK, this.timeScaleForVelocity());
+          this.player.playAnimationForState(walkState, this.timeScaleForVelocity());
         } else {
-          this.player.playAnimationForState("turn");
+          this.player.playAnimationForState(turnState);
         }
 
-        if (this.inputMultiplexer.action()) {
+        if (!this.carrying && this.inputMultiplexer.action()) {
           this.changeState(RUN);
           break;
         }
@@ -103,7 +133,13 @@ export default class CharacterSystem {
         if (this.checkJump()) {
           break;
         };
-        
+        if (this.checkThrow()) {
+          break;
+        };
+        if (this.checkEnter()) {
+          break;
+        }
+
         this.acclerateX(delta, this.constants.walkAcceleration);
         break;
       }
@@ -169,8 +205,15 @@ export default class CharacterSystem {
       case DUCK: {
         break;
       }
+      case DIG: {
+        break;
+      }
       case JUMP: {
-        if (this.player.body.onFloor()) {
+        if (this.player.body.velocity.y > 0) {
+          this.changeState(FALL);
+          break;
+        }
+        if (this.onSomething(this.player)) {
           this.changeState(IDLE);
           break;
         }
@@ -178,24 +221,44 @@ export default class CharacterSystem {
         if (jumpTimeElapsed) {
           console.log('jumpTimeElapsed');
         }
-        if (!this.inputMultiplexer.action() || jumpTimeElapsed) {
+        if (!this.inputMultiplexer.jump() || jumpTimeElapsed) {
           this.changeState(FALL);
           break;
         }
 
         const gravity = this.constants.gravity * this.gravityFactor;
-        this.player.setAccelerationY(-gravity * this.constants.jumpGravityFactor);
+        const jumpFactor = this.inputMultiplexer.action() ?
+          this.constants.runJumpGravityFactor :
+          this.constants.jumpGravityFactor;
+        this.player.setAccelerationY(-gravity * jumpFactor);
 
         this.acclerateX(delta, this.constants.airAcceleration);
+
+        if (this.checkThrow()) {
+          break;
+        };
         break;
       }
       case FALL: {
-        if (this.player.body.onFloor()) {
+        if (this.onSomething(this.player)) {
           this.changeState(IDLE);
           break;
         }
 
         this.acclerateX(delta, this.constants.airAcceleration);
+
+        if (this.checkThrow()) {
+          break;
+        };
+        if (this.checkEnter()) {
+          break;
+        }
+        break;
+      }
+      case THROW: {
+        break;
+      }
+      case ENTER: {
         break;
       }
     }
@@ -210,7 +273,21 @@ export default class CharacterSystem {
     if (Math.round(this.pMeter) >= this.pMax - 1) {
       console.log(`p-meter: ${this.pMeter}`);
     }
+
     // console.log(`player: ${this.player.body.velocity.x}, ${this.player.body.velocity.y}`);
+  }
+
+  worldStep(delta) {
+    if (!this.player) {
+      return;
+    }
+    if (!!this.player.riding) {
+      const deltaX = this.player.riding.body.deltaX();
+      const deltaY = this.player.riding.body.deltaY();
+      const { x, y } = this.player;
+      // console.log(`player: ${x}, ${y} positionDelta: ${positionDelta.x}, ${positionDelta.y}`);
+      this.player.setPosition(x + deltaX, y + deltaY);
+    }
   }
 
   changeState(newState) {
@@ -226,16 +303,19 @@ export default class CharacterSystem {
     switch(this.currentState) {
       case IDLE: {
         this.setDrag(this.constants.groundDrag);
+        this.player.setDepth(this.depth.fall);
         break;
       }
       case WALK: {
         this.player.body.setMaxVelocityX(this.constants.walkSpeedMax);
         this.setDrag(this.constants.groundDrag);
+        this.player.setDepth(this.depth.fall);
         break;
       }
       case RUN: {
         this.player.body.setMaxVelocityX(this.constants.runSpeedMax);
         this.setDrag(this.constants.groundDrag);
+        this.player.setDepth(this.depth.fall);
         break;
       }
       case PRUN: {
@@ -248,24 +328,86 @@ export default class CharacterSystem {
         this.setDrag(this.constants.duckDrag);
         break;
       }
+      case DIG: {
+        this.setDrag(this.constants.duckDrag);
+        this.playDigAndChangeState();
+
+        // NOTE: is there a better way to do this?
+        this.scene.veggieSystem.dig();
+        this.carrying = true;
+
+        // Digging zeros the pmeter
+        this.pMeter = 0;
+
+        this.player.sounds.jump.play();
+        break;
+      }
       case JUMP: {
+        const jumpState = this.carrying ? "carry_jump" : JUMP;
         const speed = Math.abs(this.player.body.velocity.x);
         if(speed > this.constants.runSpeedMax) {
           this.jumpAcceleration(-this.constants.prunJumpAcceleration);
           this.player.playAnimationForState("prunjump");
         } else if(speed > this.constants.idleThresholdSpeed) {
           this.jumpAcceleration(-this.constants.walkJumpAcceleration);
-          this.player.playAnimationForState(JUMP);
+          this.player.playAnimationForState(jumpState);
         } else {
           this.jumpAcceleration(-this.constants.idleJumpAcceleration);
-          this.player.playAnimationForState(JUMP);
+          this.player.playAnimationForState(jumpState);
         }
 
         this.setDrag(this.constants.airDrag);
+        this.player.setDepth(this.depth.jump);
+
+        this.player.riding = null;
         break;
       }
       case FALL: {
-        this.player.playAnimationForState(FALL);
+        const fallState = this.carrying ? "carry_jump" : FALL;
+        this.player.playAnimationForState(fallState);
+
+        // Falling zeros the pmeter
+        this.pMeter = 0;
+
+        this.player.riding = null;
+        break;
+      }
+      case THROW: {
+        // NOTE: is there a better way to do this?
+        const anyDirectionPressed =
+          this.inputMultiplexer.left() || this.inputMultiplexer.right() ||
+          this.inputMultiplexer.up() || this.inputMultiplexer.down();
+        const verticalPressed = !this.inputMultiplexer.left() && !this.inputMultiplexer.right() &&
+          (this.inputMultiplexer.up() || this.inputMultiplexer.down());
+
+        const facingSign = this.player.flipX ? -1 : 1;
+        const throwVectorX = anyDirectionPressed ?
+          this.inputMultiplexer.dPadVector().x :
+          facingSign;
+        const throwVelocityY = verticalPressed ?
+          this.constants.throwVelocity + this.constants.throwVelocityVerticalConstant :
+          this.constants.throwVelocity;
+
+        const throwVelocity = {
+          x: this.constants.throwVelocity * throwVectorX,
+          y: throwVelocityY * this.inputMultiplexer.dPadVector().y,
+        };
+        this.scene.veggieSystem.throw(
+          throwVelocity,
+          this.constants.throwVelocityUpConstant,
+          this.constants.gravity * this.gravityFactor);
+        this.carrying = false;
+
+        // Change back to the previous state, unless we were prunning, then just run
+        if (this.previousState != PRUN) {
+          this.changeState(this.previousState);
+        } else {
+          this.changeState(RUN);
+        }
+        break;
+      }
+      case ENTER: {
+        this.playEnterAndEnterDoor();
         break;
       }
     }
@@ -280,7 +422,7 @@ export default class CharacterSystem {
   }
 
   checkFall() {
-    if (!this.player.body.onFloor()) {
+    if (!this.onSomething(this.player)) {
       this.changeState(FALL);
       return true;
     }
@@ -288,9 +430,21 @@ export default class CharacterSystem {
   }
 
   checkDuck() {
-    if (this.inputMultiplexer.downPressed()) {
+    if (!this.carrying && this.inputMultiplexer.downPressed()) {
       this.changeState(DUCK);
       return true;
+    }
+    return false;
+  }
+
+  checkDig() {
+    if (!this.carrying && this.inputMultiplexer.downPressed()) {
+      const { x, y } = this.player;
+      const veggieTile = this.map.getVeggieTileWorldXY(x, y);
+      if (veggieTile || this.player.riding) {
+        this.changeState(DIG);
+        return true;
+      }
     }
     return false;
   }
@@ -298,6 +452,23 @@ export default class CharacterSystem {
   checkJump() {
     if (this.inputMultiplexer.jumpPressed()) {
       this.changeState(JUMP);
+      return true;
+    }
+    return false;
+  }
+
+  checkThrow() {
+    if (this.carrying && this.inputMultiplexer.actionPressed()) {
+      this.changeState(THROW);
+      return true;
+    }
+    return false;
+  }
+
+  checkEnter() {
+    const { x, y } = this.player;
+    if (this.inputMultiplexer.upPressed() && this.scene.doorSystem.isDoor(x, y)) {
+      this.changeState(ENTER);
       return true;
     }
     return false;
@@ -317,6 +488,21 @@ export default class CharacterSystem {
   jumpAcceleration(acceleration) {
     this.player.setAccelerationY(acceleration * this.jumpAccelerationCorrectionFactor);
   }
+
+  playDigAndChangeState() {
+    const animationKey = this.player.playAnimationForState(DIG);
+    this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE_KEY + animationKey, () => {
+      this.changeState(IDLE);
+    });
+  }
+
+  playEnterAndEnterDoor() {
+    const animationKey = this.player.playAnimationForState(ENTER);
+    this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE_KEY + animationKey, () => {
+      this.scene.doorSystem.enter(this.player.x, this.player.y);
+    });
+  }
+
 
   setDrag(drag) {
     this.player.setDragX(drag * this.dragCorrectionFactor);
@@ -339,6 +525,10 @@ export default class CharacterSystem {
     if (this.inputMultiplexer.right()) {
       this.player.flipX = false;
     }
+  }
+
+  onSomething(character) {
+    return character.body.onFloor() || !!character.riding;
   }
 
   buildPMeter(delta) {

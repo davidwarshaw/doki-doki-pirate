@@ -9,8 +9,22 @@ export default class TitleScene extends Phaser.Scene {
 
   create() {
     this.playState = {
-      level: 1,
-      maxLevels: 10,
+      level: {
+        name: "level-2",
+        previousNumber: null,
+        currentNumber: 1,
+        player: {
+          tile: { x: 4, y: 3 },
+        },
+        veggies: {
+          picked: [],
+          carried: null,
+        },
+        doors: [
+          // { id: 0, x: 8, y: 17, from: 1, to: 2 },
+          // { id: 1, x: 8, y: 17, from: 2, to: 1 },
+        ],
+      }
     };
 
     this.font = new Font(this);

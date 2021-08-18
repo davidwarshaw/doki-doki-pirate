@@ -13,11 +13,16 @@ import WinScene from './scenes/WinScene';
 const config = {
   type: Phaser.WEBGL,
   pixelArt: true,
-  roundPixels: true,
+  render: {
+    antialias: false,
+    antialiasGL: false,
+    pixelArt: true,
+    roundPixels: true,
+  },
   scale: {
     width: properties.width,
     height: properties.height,
-    zoom: properties.scale
+    zoom: properties.scale,
   },
   parent: 'game-container',
   physics: {
@@ -25,10 +30,10 @@ const config = {
     arcade: {
       gravity: { y: 0 },
       debug: properties.debug,
-    }
+    },
   },
   input: {
-    gamepad: true
+    gamepad: true,
   },
   scene: [BootScene, TitleScene, LevelTitleScene, GameScene, HudScene, GameOverScene, WinScene]
 };

@@ -67,7 +67,7 @@ module.exports = {
     new CopyWebpackPlugin([{ from: "assets", to: "assets" }]),
     new ZipPlugin({
       path: "../",
-      filename: `plague-pit-${PACKAGE.version}.zip`,
+      filename: `doki-doki-pirate-${PACKAGE.version}.zip`,
     }),
   ],
   module: {

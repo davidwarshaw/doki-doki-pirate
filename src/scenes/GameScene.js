@@ -2,14 +2,12 @@ import properties from '../properties';
 
 import Map from '../sprites/Map';
 import Player from '../sprites/Player';
-import Cart from '../sprites/Cart';
-import Body from '../sprites/Body';
 
 import InputMultiplexer from '../utils/InputMultiplexer';
-
-import BodySystem from '../systems/BodySystem';
-import DiseaseSystem from '../systems/DiseaseSystem';
-import DigSystem from '../systems/DigSystem';
+import CharacterSystem from '../systems/CharacterSystem';
+import VeggieSystem from '../systems/VeggieSystem';
+import Enemies from '../sprites/Enemies';
+import DoorSystem from '../systems/DoorSystem';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -22,26 +20,28 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
 
-    this.numBodies = 4 + this.playState.level * 2;
-    this.allBodiesDropped = false;
-    this.gameIsOver = false;
-
-    // Physics
-    // this.matter.world.setBounds(0, 0, widthInPixels, heightInPixels);
-
-    // this.collisionCategories = {};
-    // this.collisionCategories['main'] = this.matter.world.nextCategory();
-    // this.collisionCategories['none'] = this.matter.world.nextCategory();
-
     // Map and player
     this.map = new Map(this, this.playState.level);
     const { widthInPixels, heightInPixels } = this.map.tilemap;
 
+    this.player = new Player(this, this.map, this.playState.level.player.tile);
+
+    this.characterSystem = new CharacterSystem(
+      this, this.map, this.player, this.playState.level);
+    
+    this.enemies = new Enemies(this, this.map, this.player, this.characterSystem);
+    
+    this.veggieSystem = new VeggieSystem(
+      this, this.map, this.player,  this.playState.level, this.enemies);
+
+      this.doorSystem = new DoorSystem(
+      this, this.map, this.player, this.playState.level);
+
+    this.map.registerCollision(this.player, this.player.processCollision, () => {});
+
     this.physics.world.setBounds(0, 0, widthInPixels, heightInPixels);
 
-    this.player = new Player(this, this.map, { x: 5, y: 3 });
-
-    this.map.registerCollision(this.player);
+    this.physics.world.on('worldstep', this.worldStep, this);
 
     this.cameras.main.setBounds(0, 0, widthInPixels, heightInPixels);
     this.cameras.main.startFollow(this.player, true, 1, 1, 0, 0);
@@ -55,6 +55,8 @@ export default class GameScene extends Phaser.Scene {
       gameOver: this.sound.add('game-over'),
       nextLevel: this.sound.add('next-level'),
     }
+
+    this.cameras.main.fadeIn(properties.fadeMillis);
   }
 
   update(time, delta) {
@@ -70,8 +72,45 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.player.update(this, delta, this.inputMultiplexer);
-    const playerTile = this.map.tilemap.worldToTileXY(this.player.x, this.player.y);
+    
+    this.characterSystem.update(delta, this.inputMultiplexer);
+    
+    this.player.update(delta, this.inputMultiplexer);
+
+    this.enemies.update(delta);
+
+    this.doorSystem.update(delta);
+  }
+
+  worldStep(delta) {
+    if (!this.veggieSystem || !this.characterSystem) {
+      return;
+    }
+    this.characterSystem.worldStep(delta);
+    this.veggieSystem.worldStep(delta);
+  }
+
+  enterDoor(tileX, tileY, fromNumber, toNumber) {
+    this.playState.level.previousNumber = fromNumber;
+    this.playState.level.currentNumber = toNumber;
+    this.playState.level.player.tile = {
+      x: tileX,
+      y: tileY,
+    };
+
+    const outer = this.playState.level.name.split("-")[1];
+    const inner = this.playState.level.currentNumber;
+    this.events.emit('change-level', { outer, inner });
+
+    this.cameras.main.fadeOut(properties.fadeMillis);
+    this.scene.restart(this.playState);
+  }
+
+  enterExitDoor() {
+    this.playState.level = {};
+    this.cameras.main.fadeOut(properties.fadeMillis);
+    this.scene.stop('HudScene');
+    this.scene.start('WinScene', this.playState);
   }
 
   updateMeters(pestilence, infection) {

@@ -14,35 +14,21 @@ export default class GameOverScene extends Phaser.Scene {
   create() {
     this.font = new Font(this);
 
-    this.messages = [
-      ['so goeth the way', 'of all flesh'],
-      ['thus passes', 'worldly glory'],
-      ['all is vanity'],
-      ['all those proud', 'shall be brought low'],
-      ['all are of dirt', 'to dirt', 'shall all return'],
-      ['a regal meal', 'for maggots', 'a fatted king maketh'],
-    ];
-
     this.images = [];
 
     const centerX = properties.width / 2;
     const centerY = properties.height / 2;
 
-    this.images.push(this.add.image(centerX, centerY, 'crown'));
+    this.images.push(this.add.image(centerX, centerY + 30, 'player'));
 
-    let text = properties.rng.getItem(this.messages);
-    text.forEach((textLine, row) => {
-      let offsetX = this.offsetForText(textLine);
-      let offsetY = -32 + (16 * row);
-      this.images.push(this.font.render(centerX + offsetX, centerY + offsetY, textLine));  
-    });
-
+    const message = `That's all folks!`;
+    this.images.push(this.font.render(centerX + this.offsetForText(message), centerY, message));  
     this.input.keyboard.on('keydown', () => this.keyDown());
     this.buttonIsPressed = false;
     this.gamePadListeners = false;
 
     this.sounds = {
-      newGame: this.sound.add('new-game'),
+      enter: this.sound.add('enter'),
     }
   }
 

@@ -14,20 +14,15 @@ export default class WinScene extends Phaser.Scene {
   create() {
     this.font = new Font(this);
 
-    const text = ['dance, flirt, and make away', 'nights end is pale embrace', 'but not to-day'];
-
     this.images = [];
 
     const centerX = properties.width / 2;
     const centerY = properties.height / 2;
 
-    this.images.push(this.add.image(centerX, centerY, 'cathedral'));
+    this.images.push(this.add.image(centerX, centerY + 30, 'player'));
 
-    text.forEach((textLine, row) => {
-      let offsetX = this.offsetForText(textLine);
-      let offsetY = -94 + (16 * row);
-      this.images.push(this.font.render(centerX + offsetX, centerY + offsetY, textLine));  
-    });
+    const message = `That's all folks!`;
+    this.images.push(this.font.render(centerX + this.offsetForText(message), centerY, message));  
     this.input.keyboard.on('keydown', () => this.keyDown());
     this.buttonIsPressed = false;
     this.gamePadListeners = false;

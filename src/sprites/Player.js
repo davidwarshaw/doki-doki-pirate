@@ -13,23 +13,15 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
 
     this.body.useDamping = false;
+    this.body.syncBounds = true;
 
-    this.setDepth(1);
+    this.setOrigin(0.5, 0.9);
 
     this.type = "player";
 
-    this.walkSpeed = 100;
-    this.airwalkSpeed = 80;
-    this.jumpSpeed = 220;
-
-    this.inJump = false;
-    this.inAction = false;
-
-    this.jumpPressed = false;
-    this.actionPressed = false;
-
     const world = map.tilemap.tileToWorldXY(tile.x, tile.y);
-    this.setPosition(world.x, world.y);
+    const { tileWidth, tileHeight } = this.map.tilemap;
+    this.setPosition(world.x + tileWidth / 2, world.y + tileHeight * 0.5);
 
     scene.anims.create({
       key: "player_idle",
@@ -80,14 +72,44 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
       repeat: -1,
     });
     scene.anims.create({
+      key: "player_enter",
+      frames: scene.anims.generateFrameNumbers("player", { start: 10, end: 10 }),
+      frameRate: properties.animFrameRate,
+      repeat: 0,
+    });
+    scene.anims.create({
       key: "player_duck",
       frames: scene.anims.generateFrameNumbers("player", { start: 12, end: 12 }),
       frameRate: properties.animFrameRate,
       repeat: -1,
     });
     scene.anims.create({
-      key: "player_carry",
+      key: "player_dig",
+      frames: scene.anims.generateFrameNumbers("player", { start: 12, end: 12 }),
+      frameRate: properties.animFrameRate,
+      repeat: 0,
+    });
+    scene.anims.create({
+      key: "player_carry_idle",
+      frames: scene.anims.generateFrameNumbers("player", { start: 15, end: 15 }),
+      frameRate: properties.animFrameRate,
+      repeat: -1,
+    });
+    scene.anims.create({
+      key: "player_carry_walk",
       frames: scene.anims.generateFrameNumbers("player", { start: 15, end: 17, first: 15 }),
+      frameRate: properties.animFrameRate,
+      repeat: -1,
+    });
+    scene.anims.create({
+      key: "player_carry_turn",
+      frames: scene.anims.generateFrameNumbers("player", { start: 16, end: 16 }),
+      frameRate: properties.animFrameRate,
+      repeat: -1,
+    });
+    scene.anims.create({
+      key: "player_carry_jump",
+      frames: scene.anims.generateFrameNumbers("player", { start: 17, end: 17 }),
       frameRate: properties.animFrameRate,
       repeat: -1,
     });
@@ -105,142 +127,47 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
         this.inAction = false;
       },
       this
-    );
-
-    this.characterSystem = new CharacterSystem(this);
+    ); 
 
     this.sounds = {
-      walk: scene.sound.add('walk', { loop: true }),
       jump: scene.sound.add('jump'),
     };
   }
 
-  isTouching() {
-    return this.touching.left || this.touching.right || this.touching.up || this.touching.down;
+  hit() {
+    console.log('player hit');
+  }
+
+  processCollision(character, tile) {
+    if (tile.index === -1) {
+      return false;
+    }
+    const { collides, collisionStyle } = tile.properties;
+    if (!collides) {
+      return false;
+    }
+    switch (collisionStyle) {
+      case "solid": return true;
+      case "passthroughUp": {
+        console.log(`character.body.velocity.y: ${character.body.velocity.y}`);
+        return character.body.velocity.y > 0;
+      }
+    }
   }
 
   playAnimationForState(state, optionalTimeScale) {
     const timeScale = optionalTimeScale || 1;
     const lowcaseState = state.toLowerCase();
-    this.anims.play(`player_${lowcaseState}`, true);
+    const animationKey = `player_${lowcaseState}`;
+    this.anims.play(animationKey, true);
     this.anims.timeScale = timeScale;
+    return animationKey;
   }
 
   update(scene, delta, inputMultiplexer) {
-    this.characterSystem.update(delta, inputMultiplexer);
-  }
-
-  updateBackup(scene, delta, inputMultiplexer) {
-    
-    this.digDirection = null;
-
-    const onSomething = this.body.onFloor();
-
-    // Reset pressed flags
-    if (!inputMultiplexer.jump()) {
-      this.jumpPressed = false;
-    }
-    if (!inputMultiplexer.action()) {
-      this.actionPressed = false;
-    }
-
-    let actionThisUpdate = false;
-
-    // If we land, the jump is over
-    if (onSomething) {
-      this.inJump = false;
-    }
-
-    if (inputMultiplexer.jump() && onSomething && !this.jumpPressed) {
-      // console.log('Keys: jump');
-      if (!this.inAction) {
-        this.anims.play("player_jump", true);
-        this.sounds.jump.play();
-        this.sounds.walk.stop();
-      }
-      this.setVelocityY(-this.jumpSpeed);
-      this.jumpPressed = true;
-      this.inJump = true;
-    }
-
-    if (inputMultiplexer.action() && !this.actionPressed && !this.inAction) {
-      // console.log('Keys: action');
-      this.anims.play("player_action", true);
-      this.sounds.walk.stop();
-      this.actionPressed = true;
-      this.inAction = true;
-      actionThisUpdate = true;
-    }
-
-    if (inputMultiplexer.up()) {
-      // console.log('Keys: up');
-      if (!this.inAction && !this.inJump) {
-        this.anims.play("player_walk", true);
-      }
-      if (this.inAction && actionThisUpdate) {
-        this.digDirection = "up";
-      }
-    } else if (inputMultiplexer.down()) {
-      // console.log('Keys: down');
-      if (!this.inAction && !this.inJump) {
-        this.anims.play("player_walk", true);
-      }
-      if (this.inAction && actionThisUpdate) {
-        this.digDirection = "down";
-      }
-    } else if (inputMultiplexer.left()) {
-      // console.log('Keys: left');
-      if (!this.inAction && !this.inJump) {
-        this.anims.play("player_walk", true);
-        if (!this.sounds.walk.isPlaying) {
-          this.sounds.walk.play();
-        }
-      }
-      const walkSpeed = onSomething ? this.walkSpeed : this.airwalkSpeed;
-      this.setVelocityX(-walkSpeed);
-      this.flipX = true;
-      if (this.inAction && actionThisUpdate) {
-        this.digDirection = "left";
-      }
-    } else if (inputMultiplexer.right()) {
-      // console.log('Keys: right');
-      if (!this.inAction && !this.inJump) {
-        this.anims.play("player_walk", true);
-        if (!this.sounds.walk.isPlaying) {
-          this.sounds.walk.play();
-        }
-      }
-      const walkSpeed = onSomething ? this.walkSpeed : this.airwalkSpeed;
-      this.setVelocityX(walkSpeed);
-      this.flipX = false;
-      if (this.inAction && actionThisUpdate) {
-        this.digDirection = "right";
-      }
-    } else {
-      if (!this.inAction && !this.inJump) {
-        this.anims.play("player_idle", true);
-        this.sounds.walk.stop();
-      }
-      this.setVelocityX(0);
-    }
-
-    // If we end action in a jump, switch the animation to the jump anim
-    if (this.inJump && !this.inAction) {
-      this.anims.play("player_jump", true);
-    }
-
-    // If we're falling, switch the animation to the jump anim
-    if (!onSomething && !this.inJump && !this.inAction) {
-      this.anims.play("player_jump", true);
-    }
-
-    // Keep player in bounds
-    if (this.x < 0) {
-      this.setPosition(0 + 1, this.y);
-      this.setVelocityX(0);
-    } else if (this.x > (this.map.tilemap.widthInPixels)) {
-      this.setPosition((this.map.tilemap.widthInPixels) - 1, this.y);
-      this.setVelocityX(0);
+    if (this.body.touching.down) {
+      // console.log(`this.body.touching.down`);
     }
   }
+
 }

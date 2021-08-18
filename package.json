@@ -1,8 +1,8 @@
 {
-  "name": "plague-pit",
+  "name": "doki-doki-pirate",
   "description": "2020 7DRL",
-  "homepage": "https://github.com/davidwarshaw/plague-pit",
-  "version": "1.5.0",
+  "homepage": "https://github.com/davidwarshaw/doki-doki-pirate",
+  "version": "1.1.0",
   "author": {
     "name": "never_k",
     "email": "david.warshaw@gmail.com",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davidwarshaw/plague-pit.git"
+    "url": "git+https://github.com/davidwarshaw/doki-doki-pirate.git"
   },
   "license": "MIT",
   "keywords": [
@@ -19,7 +19,7 @@
     "itch.io"
   ],
   "bugs": {
-    "url": "https://github.com/davidwarshaw/plague-pit/issues"
+    "url": "https://github.com/davidwarshaw/doki-doki-pirate/issues"
   },
   "main": "index.js",
   "scripts": {

@@ -1,0 +1,22 @@
+{
+  "carrot": {
+    "frame": 0,
+    "collideTerrain": false,
+    "hitEnemies": true
+  },
+  "scallion": {
+    "frame": 1,
+    "collideTerrain": false,
+    "hitEnemies": true
+  },
+  "heartradish": {
+    "frame": 2,
+    "collideTerrain": false,
+    "hitEnemies": false
+  },
+  "doorseed": {
+    "frame": 4,
+    "collideTerrain": true,
+    "hitEnemies": true
+  }
+}
