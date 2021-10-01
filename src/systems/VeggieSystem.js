@@ -1,5 +1,7 @@
 import veggieDefinitions from '../definitions/veggieDefinitions';
 
+import CollisionBehavior from "../systems/CollisionBehavior";
+
 export default class VeggieSystem {
   constructor(scene, map, player, level, enemies) {
     this.scene = scene;
@@ -84,29 +86,15 @@ export default class VeggieSystem {
     veggie.body.syncBounds = true;
 
     if (definition.hitEnemies) {
-      this.enemies.registerCollision(veggie, () => true, this.veggieEnemyAfterCollision);
+      this.enemies.registerCollision(veggie, null, CollisionBehavior.veggieEnemyCollide);
     }
 
     if (definition.collideTerrain) {
-      this.map.registerCollision(veggie, () => true, this.veggieTileAfterCollision);
+      this.map.registerCollision(veggie, null, CollisionBehavior.veggieTileCollide);
     }
 
     this.veggies.push(veggie);
     this.carried = veggie;
-  }
-
-  veggieEnemyAfterCollision(veggie, enemy) {
-    console.log(enemy);
-    enemy.kill();
-
-    enemy.sounds.dig.play();
-  }
-
-  veggieTileAfterCollision(veggie, tile) {
-    const doorTileY = tile.y - 1;
-    this.scene.doorSystem.addNew(tile.x, doorTileY);
-
-    veggie.destroy();
   }
 
   throw(velocity, upVelocity, gravity) {

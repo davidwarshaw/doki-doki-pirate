@@ -34,10 +34,8 @@ export default class GameScene extends Phaser.Scene {
     this.veggieSystem = new VeggieSystem(
       this, this.map, this.player,  this.playState.level, this.enemies);
 
-      this.doorSystem = new DoorSystem(
+    this.doorSystem = new DoorSystem(
       this, this.map, this.player, this.playState.level);
-
-    this.map.registerCollision(this.player, this.player.processCollision, () => {});
 
     this.physics.world.setBounds(0, 0, widthInPixels, heightInPixels);
 
@@ -80,6 +78,12 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.update(delta);
 
     this.doorSystem.update(delta);
+
+    if (this.player.riding) {
+      const bodyDelta = Math.abs(this.player.body.y - this.player.riding.body.y);
+      const spriteDelta = Math.abs(this.player.y - this.player.riding.y);
+      console.log(`body delta: ${bodyDelta} sprite delta: ${spriteDelta}`);
+    }
   }
 
   worldStep(delta) {

@@ -10,7 +10,7 @@ export default class TitleScene extends Phaser.Scene {
   create() {
     this.playState = {
       level: {
-        name: "level-2",
+        name: "level-3",
         previousNumber: null,
         currentNumber: 1,
         player: {

@@ -1,6 +1,6 @@
 import properties from "../properties";
 
-import CharacterSystem from "../systems/CharacterSystem";
+import CollisionBehavior from "../systems/CollisionBehavior";
 
 export default class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, map, tile) {
@@ -119,15 +119,7 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
     const stopFrame = this.anims.currentAnim.frames[0];
     this.anims.stopOnFrame(stopFrame);
 
-    // and reset the flag when the animation completes
-    this.on(
-      Phaser.Animations.Events.SPRITE_ANIMATION_KEY_COMPLETE + "player_action",
-      () => {
-        // console.log('animation complete: player_action');
-        this.inAction = false;
-      },
-      this
-    ); 
+    map.registerCollision(this, CollisionBehavior.playerTileProcess, null);
 
     this.sounds = {
       jump: scene.sound.add('jump'),
@@ -136,23 +128,6 @@ export default class Player extends Phaser.Physics.Arcade.Sprite {
 
   hit() {
     console.log('player hit');
-  }
-
-  processCollision(character, tile) {
-    if (tile.index === -1) {
-      return false;
-    }
-    const { collides, collisionStyle } = tile.properties;
-    if (!collides) {
-      return false;
-    }
-    switch (collisionStyle) {
-      case "solid": return true;
-      case "passthroughUp": {
-        console.log(`character.body.velocity.y: ${character.body.velocity.y}`);
-        return character.body.velocity.y > 0;
-      }
-    }
   }
 
   playAnimationForState(state, optionalTimeScale) {

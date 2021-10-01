@@ -130,15 +130,6 @@ export default class Enemy extends Phaser.Physics.Arcade.Sprite {
       this.colliders.playerCollider = null;
     }
 
-    // const tweens = [...Array(10).keys()].map(i => ({ alpha: 0, yoyo: true }));
-    // const timelineConfig = {
-    //   tweens, targets: this, totalDuration: this.enemyFlickerMillis
-    // };
-    // const timeline = this.scene.tweens.createTimeline(timelineConfig);
-    // timeline.play();
-
-    // console.log(timeline.isPlaying());
-
     const animationKey = "roja_die";
     this.anims.play(animationKey, true);
   }
